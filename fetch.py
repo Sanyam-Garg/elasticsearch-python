@@ -1,6 +1,10 @@
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import ElasticsearchWarning
-import warnings
+import warnings, boto3
+
+# TODO: 
+# 1. Add AWS credentials for s3.
+# 2. Update the bucket name and uploaded data key.
 
 # Prevent security warnings
 warnings.simplefilter('ignore', ElasticsearchWarning)
@@ -54,5 +58,15 @@ result = es.search(
   }
  )
 
-# Print the responses
-print(result['hits']['hits'])
+# Write the responses to a file
+with open("data.txt", "w") as fp:
+  fp.write(str(result['hits']['hits']))
+
+# ## Upload to s3
+
+# # Set boto resource to s3
+# s3 = boto3.resource("s3")
+
+# # Read data file and upload to s3
+# with open("data.txt", "rb") as data:
+#     s3.Bucket("BUCKET-NAME").put_object(Key="KEY", body=data)
