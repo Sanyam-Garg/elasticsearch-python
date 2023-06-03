@@ -3,8 +3,12 @@ from elasticsearch.exceptions import ElasticsearchWarning
 import warnings, boto3
 
 # TODO: 
-# 1. Add AWS credentials for s3.
-# 2. Update the bucket name and uploaded data key.
+# [] Get the period for which to collect data from command line
+# [] Find the timestamp for the start of the given period
+# [] Run the search query in batches
+# [] Handle the exceptions while searching
+# [] Add AWS credentials for s3.
+# [] Update the bucket name and uploaded data key.
 
 es = None
 
@@ -16,6 +20,21 @@ def index_document(index, document):
     print("Error while indexing document.")
     exit(1)
 
+def query_data(index, period_start_timestamp):
+  return es.search(
+  index=index,
+    query={
+      'range': {
+        '@timestamp': {
+          'gte': period_start_timestamp,
+          'lt': 1685811801
+        }
+      }
+    }
+  )
+
+def get_timestamp(period):
+  pass
 
 # Prevent security warnings
 warnings.simplefilter('ignore', ElasticsearchWarning)
@@ -39,17 +58,20 @@ if not es.indices.exists(index=index):
 # Index a few documents to the index
 index_document(index=index, document={
   'character': 'Aragon',
-  'quote': 'It is not this day.'
+  'quote': 'It is not this day.',
+  '@timestamp': 1654256000
  })
 
 index_document(index=index, document={
   'character': 'Frodo Baggins',
-  'quote': 'You are late'
+  'quote': 'You are late',
+  '@timestamp': 1685811800
  })
 
 index_document(index=index, document={
   'character': 'Gandalf',
-  'quote': 'A wizard is never late, nor is he early.'
+  'quote': 'A wizard is never late, nor is he early.',
+  '@timestamp': 1685811800
  })
 
 
@@ -58,12 +80,7 @@ es.indices.refresh(index=index)
 
 # Query the index
 print(f"Fetching documents from the index {index}")
-result = es.search(
- index=index,
-  query={
-    'match': {'quote': 'late'}
-  }
- )
+result = query_data(index=index, period_start_timestamp=get_timestamp(period))
 
 # Write the responses to a file
 with open("data.txt", "w") as fp:
