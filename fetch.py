@@ -1,4 +1,4 @@
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
 import warnings, boto3
 
@@ -6,44 +6,51 @@ import warnings, boto3
 # 1. Add AWS credentials for s3.
 # 2. Update the bucket name and uploaded data key.
 
+es = None
+
+def index_document(index, document):
+  try:
+    es.index(index=index, document=document)
+    print(f"Inserted document into index {index}")
+  except:
+    print("Error while indexing document.")
+    exit(1)
+
+
 # Prevent security warnings
 warnings.simplefilter('ignore', ElasticsearchWarning)
 
 # Connect to elasticsearch cluster
-es = Elasticsearch('http://localhost:9200')
+try:
+  es = Elasticsearch('http://localhost:9200')
+except:
+  print("Error connecting to Elastic search cluster.")
+  exit(1)
 
 # Create new index if doesn't exist
 index = 'lord-of-the-rings-2'
 if not es.indices.exists(index=index):
-    es.indices.create(index=index)
-    print(f"Index {index} created successfully.")
+    try:
+      es.indices.create(index=index)
+      print(f"Index {index} created successfully.")
+    except:
+      print(f"Error occurred while creating index {index}.")
 
 # Index a few documents to the index
-es.index(
- index=index,
- document={
+index_document(index=index, document={
   'character': 'Aragon',
   'quote': 'It is not this day.'
  })
 
-print(f"Inserted document into index {index}")
-
-es.index(
- index=index,
- document={
-  'character': 'Gandalf',
-  'quote': 'A wizard is never late, nor is he early.'
- })
-print(f"Inserted document into index {index}")
-
-
-es.index(
- index=index,
- document={
+index_document(index=index, document={
   'character': 'Frodo Baggins',
   'quote': 'You are late'
  })
-print(f"Inserted document into index {index}")
+
+index_document(index=index, document={
+  'character': 'Gandalf',
+  'quote': 'A wizard is never late, nor is he early.'
+ })
 
 
 # Refresh the index
