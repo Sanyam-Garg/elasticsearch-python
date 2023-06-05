@@ -9,4 +9,4 @@ This python script ingests data from elasticsearch
     `source venv/bin/activate`
 4. Install the requirements 
     `pip install -r requirements.txt`
-5. Run the `fetch` script
+5. Run `python fetch.py -h` to see the required command line arguments to pass
