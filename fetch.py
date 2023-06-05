@@ -25,7 +25,7 @@ def query_data(index, period_start_timestamp):
   index=index,
     query={
       'range': {
-        '@timestamp': {
+        'timestamp': {
           'gte': period_start_timestamp,
           'lt': 1685811801
         }
@@ -59,19 +59,19 @@ if not es.indices.exists(index=index):
 index_document(index=index, document={
   'character': 'Aragon',
   'quote': 'It is not this day.',
-  '@timestamp': 1654256000
+  'timestamp': 1654256000
  })
 
 index_document(index=index, document={
   'character': 'Frodo Baggins',
   'quote': 'You are late',
-  '@timestamp': 1685811800
+  'timestamp': 1685811800
  })
 
 index_document(index=index, document={
   'character': 'Gandalf',
   'quote': 'A wizard is never late, nor is he early.',
-  '@timestamp': 1685811800
+  'timestamp': 1685811800
  })
 
 
