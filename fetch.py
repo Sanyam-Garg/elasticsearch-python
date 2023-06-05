@@ -1,16 +1,39 @@
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ElasticsearchWarning
-import warnings, boto3
+import warnings, boto3, argparse
+from datetime import datetime, timedelta
 
 # TODO: 
-# [] Get the period for which to collect data from command line
-# [] Find the timestamp for the start of the given period
+# [X] Get the period for which to collect data from command line
+# [X] Find the timestamp for the start of the given period
 # [] Run the search query in batches
 # [] Handle the exceptions while searching
 # [] Add AWS credentials for s3.
 # [] Update the bucket name and uploaded data key.
 
 es = None
+parser = argparse.ArgumentParser()
+
+def init_parser():
+  parser.add_argument("--period", type=str, required=True, help="The time period for which the data you want to fetch.\nUse the following format: NUM_PERIOD\nFor example, 15_days, 7_hours, 10_mins, 2_weeks")
+  parser.add_argument("--elastic_host", type=str, required=False)
+  return parser.parse_args()
+
+def get_td_object(num, unit):
+  if unit == "mins":
+    return timedelta(minutes=int(num))
+  elif unit == "hours":
+    return timedelta(hours=int(num))
+  elif unit == "days":
+    return timedelta(days=int(num))
+  elif unit == "weeks":
+    return timedelta(weeks=int(num))
+
+def get_timestamp(period):
+  period = period.split('_')
+  (num, unit) = (period[0], period[1])
+  td_object = get_td_object(num, unit)
+  return int((datetime.now() - td_object).timestamp())
 
 def index_document(index, document):
   try:
@@ -27,21 +50,21 @@ def query_data(index, period_start_timestamp):
       'range': {
         'timestamp': {
           'gte': period_start_timestamp,
-          'lt': 1685811801
+          'lt': int(datetime.now().timestamp())
         }
       }
     }
   )
 
-def get_timestamp(period):
-  pass
-
 # Prevent security warnings
 warnings.simplefilter('ignore', ElasticsearchWarning)
 
+# Get the command line args
+args = init_parser()
+
 # Connect to elasticsearch cluster
 try:
-  es = Elasticsearch('http://localhost:9200')
+  es = Elasticsearch(args.elastic_host or 'http://localhost:9200')
 except:
   print("Error connecting to Elastic search cluster.")
   exit(1)
@@ -59,19 +82,19 @@ if not es.indices.exists(index=index):
 index_document(index=index, document={
   'character': 'Aragon',
   'quote': 'It is not this day.',
-  'timestamp': 1654256000
+  'timestamp': int(datetime.now().timestamp())
  })
 
 index_document(index=index, document={
   'character': 'Frodo Baggins',
   'quote': 'You are late',
-  'timestamp': 1685811800
+  'timestamp': int(datetime.now().timestamp())
  })
 
 index_document(index=index, document={
   'character': 'Gandalf',
   'quote': 'A wizard is never late, nor is he early.',
-  'timestamp': 1685811800
+  'timestamp': int((datetime.now()-timedelta(hours=15)).timestamp())
  })
 
 
@@ -80,7 +103,7 @@ es.indices.refresh(index=index)
 
 # Query the index
 print(f"Fetching documents from the index {index}")
-result = query_data(index=index, period_start_timestamp=get_timestamp(period))
+result = query_data(index=index, period_start_timestamp=get_timestamp(args.period))
 
 # Write the responses to a file
 with open("data.txt", "w") as fp:
