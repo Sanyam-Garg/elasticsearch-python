@@ -1,4 +1,4 @@
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import ElasticsearchWarning
 import warnings, boto3, argparse
 from datetime import datetime, timedelta
@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 # TODO: 
 # [X] Get the period for which to collect data from command line
 # [X] Find the timestamp for the start of the given period
-# [] Run the search query in batches
-# [] Handle the exceptions while searching
+# [X] Run the search query in batches
+# [X] Handle the exceptions while searching
 # [] Add AWS credentials for s3.
 # [] Update the bucket name and uploaded data key.
 
@@ -39,14 +39,32 @@ def index_document(index, document):
   try:
     es.index(index=index, document=document)
     print(f"Inserted document into index {index}")
-  except:
-    print("Error while indexing document.")
+  except Exception as e:
+    print(f"Error while indexing document\n{e}")
     exit(1)
 
+def index_sample_documents():
+  index_document(index=index, document={
+    'character': 'Aragon',
+    'quote': 'It is not this day.',
+    'timestamp': int(datetime.now().timestamp())
+  })
+
+  index_document(index=index, document={
+    'character': 'Frodo Baggins',
+    'quote': 'You are late',
+    'timestamp': int(datetime.now().timestamp())
+  })
+
+  index_document(index=index, document={
+    'character': 'Gandalf',
+    'quote': 'A wizard is never late, nor is he early.',
+    'timestamp': int((datetime.now()-timedelta(hours=15)).timestamp())
+  })
+
 def query_data(index, period_start_timestamp):
-  return es.search(
-  index=index,
-    query={
+  query = {
+    'query':{
       'range': {
         'timestamp': {
           'gte': period_start_timestamp,
@@ -54,7 +72,16 @@ def query_data(index, period_start_timestamp):
         }
       }
     }
-  )
+  }
+
+  result = []
+  try:
+    for hit in helpers.scan(es, index=index, query=query):
+      result.append(hit["_source"])
+  except Exception as e:
+    print(f"Error while fetching documents.\n{e}")
+
+  return result
 
 # Prevent security warnings
 warnings.simplefilter('ignore', ElasticsearchWarning)
@@ -65,8 +92,8 @@ args = init_parser()
 # Connect to elasticsearch cluster
 try:
   es = Elasticsearch(args.elastic_host or 'http://localhost:9200')
-except:
-  print("Error connecting to Elastic search cluster.")
+except Exception as e:
+  print(f"Error connecting to Elastic search cluster.\n{e}")
   exit(1)
 
 # Create new index if doesn't exist
@@ -75,40 +102,22 @@ if not es.indices.exists(index=index):
     try:
       es.indices.create(index=index)
       print(f"Index {index} created successfully.")
-    except:
-      print(f"Error occurred while creating index {index}.")
+    except Exception as e:
+      print(f"Error occurred while creating index {index}.\n{e}")
 
-# Index a few documents to the index
-index_document(index=index, document={
-  'character': 'Aragon',
-  'quote': 'It is not this day.',
-  'timestamp': int(datetime.now().timestamp())
- })
-
-index_document(index=index, document={
-  'character': 'Frodo Baggins',
-  'quote': 'You are late',
-  'timestamp': int(datetime.now().timestamp())
- })
-
-index_document(index=index, document={
-  'character': 'Gandalf',
-  'quote': 'A wizard is never late, nor is he early.',
-  'timestamp': int((datetime.now()-timedelta(hours=15)).timestamp())
- })
-
-
+# index_sample_documents()
 # Refresh the index
-es.indices.refresh(index=index)
+# es.indices.refresh(index=index)
 
 # Query the index
 print(f"Fetching documents from the index {index}")
 result = query_data(index=index, period_start_timestamp=get_timestamp(args.period))
 
 # Write the responses to a file
+print("Writing data to output file.")
 with open("data.txt", "w") as fp:
-  fp.write(str(result['hits']['hits']))
-
+  fp.write(str(result))
+print("Done!")
 # ## Upload to s3
 
 # # Set boto resource to s3
