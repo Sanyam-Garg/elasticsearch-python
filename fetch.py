@@ -1,6 +1,6 @@
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import ElasticsearchWarning
-import warnings, boto3, argparse
+import warnings, boto3, argparse, sys
 from datetime import datetime, timedelta
 
 # TODO: 
@@ -42,7 +42,7 @@ def index_document(index, document):
     print(f"Inserted document into index {index}")
   except Exception as e:
     print(f"Error while indexing document\n{e}")
-    exit(1)
+    sys.exit(1)
 
 def index_sample_documents():
   index_document(index=index, document={
@@ -81,7 +81,7 @@ def query_data(index, period_start_timestamp):
       result.append(hit["_source"])
   except Exception as e:
     print(f"Error while fetching documents.\n{e}")
-
+    sys.exit()
   return result
 
 # Prevent security warnings
@@ -91,20 +91,13 @@ warnings.simplefilter('ignore', ElasticsearchWarning)
 args = init_parser()
 
 # Connect to elasticsearch cluster
-try:
-  es = Elasticsearch(args.elastic_host or 'http://localhost:9200')
-except Exception as e:
-  print(f"Error connecting to Elastic search cluster.\n{e}")
-  exit(1)
+es = Elasticsearch(args.elastic_host or 'http://localhost:9200')
+if not es.ping():
+  print(f"Error connecting to Elastic search cluster.")
+  sys.exit()
 
-# Create new index if doesn't exist
+# Get index from command line
 index = args.index
-if not es.indices.exists(index=index):
-    try:
-      es.indices.create(index=index)
-      print(f"Index {index} created successfully.")
-    except Exception as e:
-      print(f"Error occurred while creating index {index}.\n{e}")
 
 # index_sample_documents()
 # Refresh the index
