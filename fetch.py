@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 def init_parser():
   parser.add_argument("--period", type=str, required=True, help="The time period for which the data you want to fetch.\nUse the following format: NUM_PERIOD\nFor example, 15_days, 7_hours, 10_mins, 2_weeks")
   parser.add_argument("--elastic_host", type=str, required=False)
+  parser.add_argument("--index", type=str, required=True)
   return parser.parse_args()
 
 def get_td_object(num, unit):
@@ -97,7 +98,7 @@ except Exception as e:
   exit(1)
 
 # Create new index if doesn't exist
-index = 'lord-of-the-rings-2'
+index = args.index
 if not es.indices.exists(index=index):
     try:
       es.indices.create(index=index)
@@ -115,7 +116,8 @@ result = query_data(index=index, period_start_timestamp=get_timestamp(args.perio
 
 # Write the responses to a file
 print("Writing data to output file.")
-with open("data.txt", "w") as fp:
+filename = "es_health_" + str(int(datetime.now().timestamp()))
+with open(filename, "w") as fp:
   fp.write(str(result))
 print("Done!")
 # ## Upload to s3
